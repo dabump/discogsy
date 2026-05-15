@@ -38,7 +38,7 @@ func main() {
 	}
 	store := web.NewRecordStore(records)
 	client := discogs.NewClient(config)
-	go discogs.RunEvery(12*time.Hour, client, collectionPath, posterDir, store)
+	go discogs.RunEvery(1*time.Hour, client, collectionPath, posterDir, store)
 
 	port := envWithDefault("PORT", "8082")
 
