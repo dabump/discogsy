@@ -213,12 +213,12 @@
   </style>
 </head>
 <body>
-  <section class="hero" aria-label="Martins vinyl collection">
+  <section class="hero" aria-label="{{.CollectionName}} vinyl collection">
     <div class="collage" aria-hidden="true">
       {{range .HeroPosters}}<img src="/posters/{{.}}" alt="" loading="eager">{{end}}
     </div>
     <div class="hero-content">
-      <h1>Martins vinyl collection</h1>
+      <h1>{{.CollectionName}} vinyl collection</h1>
       <p class="subtitle">Browse the shelves by artist, search as you type, and flip the sort direction without leaving the groove.</p>
     </div>
   </section>

@@ -14,8 +14,9 @@ import (
 )
 
 type pageData struct {
-	RecordsJSON template.JS
-	HeroPosters []string
+	RecordsJSON    template.JS
+	HeroPosters    []string
+	CollectionName string
 }
 
 type RecordStore struct {
@@ -45,7 +46,7 @@ func (s *RecordStore) SetRecords(records []collection.Record) {
 	s.records = records
 }
 
-func NewHandler(store *RecordStore, posterDirs []string, templatePath string) http.Handler {
+func NewHandler(store *RecordStore, posterDirs []string, templatePath string, collectionName string) http.Handler {
 	page := template.Must(template.ParseFiles(templatePath))
 	mux := http.NewServeMux()
 	mux.Handle("/posters/", http.StripPrefix("/posters/", posterFileServer(posterDirs)))
@@ -75,7 +76,7 @@ func NewHandler(store *RecordStore, posterDirs []string, templatePath string) ht
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := page.Execute(w, pageData{RecordsJSON: template.JS(recordsJSON), HeroPosters: randomPosters(records, 28)}); err != nil {
+		if err := page.Execute(w, pageData{RecordsJSON: template.JS(recordsJSON), HeroPosters: randomPosters(records, 28), CollectionName: collectionName}); err != nil {
 			http.Error(w, "failed to render page", http.StatusInternalServerError)
 		}
 	})

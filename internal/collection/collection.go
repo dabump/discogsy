@@ -3,6 +3,7 @@ package collection
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,8 +19,15 @@ type Record struct {
 }
 
 func Load(path string) ([]Record, error) {
-	file, err := os.Open(filepath.Clean(path))
+	cleanPath := filepath.Clean(path)
+	file, err := os.Open(cleanPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			if err := os.WriteFile(cleanPath, []byte("[]\n"), 0644); err != nil {
+				return nil, err
+			}
+			return []Record{}, nil
+		}
 		return nil, err
 	}
 	defer file.Close()

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/dabump/discogsy/internal/collection"
@@ -22,6 +24,10 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Printf("Discogs sync configured for username %q", config.Username)
+	collectionName, err := requiredEnv("VINYL_COLLECTION_NAME")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	records, err := collection.Load(collectionPath)
 	if err != nil {
@@ -29,7 +35,7 @@ func main() {
 	}
 	store := web.NewRecordStore(records)
 	client := discogs.NewClient(config)
-	go discogs.RunEvery(5*time.Minute, client, collectionPath, posterDir, store)
+	go discogs.RunEvery(12*time.Hour, client, collectionPath, posterDir, store)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -37,7 +43,15 @@ func main() {
 	}
 
 	log.Printf("Discogsy listening on http://localhost:%s", port)
-	if err := http.ListenAndServe(":"+port, web.NewHandler(store, []string{posterDir}, "internal/web/index.html")); err != nil {
+	if err := http.ListenAndServe(":"+port, web.NewHandler(store, []string{posterDir}, "internal/web/index.html", collectionName)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func requiredEnv(name string) (string, error) {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return "", fmt.Errorf("missing required environment variable: %s", name)
+	}
+	return value, nil
 }
