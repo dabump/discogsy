@@ -12,7 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -60,10 +59,6 @@ type basicInformation struct {
 
 type artist struct {
 	Name string `json:"name"`
-}
-
-type priceSuggestion struct {
-	Value float64 `json:"value"`
 }
 
 func ConfigFromEnv() (Config, error) {
@@ -155,21 +150,13 @@ func (c *Client) Sync(collectionPath string, posterDir string) ([]collection.Rec
 			}
 		}
 
-		highPrice, mediumPrice, lowPrice, err := c.priceRange(info.ID)
-		if err != nil {
-			return nil, false, fmt.Errorf("get price suggestions for release %d: %w", info.ID, err)
-		}
-
 		records = append(records, collection.Record{
-			DiscogsID:   discogsID,
-			Artist:      artistNames(info.Artists),
-			Album:       info.Title,
-			Year:        yearPtr(info.Year),
-			Link:        link,
-			Poster:      poster,
-			HighPrice:   highPrice,
-			MediumPrice: mediumPrice,
-			LowPrice:    lowPrice,
+			DiscogsID: discogsID,
+			Artist:    artistNames(info.Artists),
+			Album:     info.Title,
+			Year:      yearPtr(info.Year),
+			Link:      link,
+			Poster:    poster,
 		})
 	}
 
@@ -181,30 +168,6 @@ func (c *Client) Sync(collectionPath string, posterDir string) ([]collection.Rec
 		return nil, false, err
 	}
 	return records, true, nil
-}
-
-func (c *Client) priceRange(releaseID int) (*float64, *float64, *float64, error) {
-	endpoint := fmt.Sprintf("%s/marketplace/price_suggestions/%d", apiBaseURL, releaseID)
-	suggestions := map[string]priceSuggestion{}
-	if err := c.getJSON(endpoint, &suggestions); err != nil {
-		return nil, nil, nil, err
-	}
-
-	values := make([]float64, 0, len(suggestions))
-	for _, suggestion := range suggestions {
-		if suggestion.Value > 0 {
-			values = append(values, suggestion.Value)
-		}
-	}
-	if len(values) == 0 {
-		return nil, nil, nil, nil
-	}
-
-	sort.Float64s(values)
-	low := values[0]
-	high := values[len(values)-1]
-	medium := median(values)
-	return &high, &medium, &low, nil
 }
 
 func (c *Client) collectionReleases() ([]collectionRelease, error) {
@@ -333,10 +296,7 @@ func sameRecord(a collection.Record, b collection.Record) bool {
 		a.Album == b.Album &&
 		sameYear(a.Year, b.Year) &&
 		a.Link == b.Link &&
-		a.Poster == b.Poster &&
-		sameFloat(a.HighPrice, b.HighPrice) &&
-		sameFloat(a.MediumPrice, b.MediumPrice) &&
-		sameFloat(a.LowPrice, b.LowPrice)
+		a.Poster == b.Poster
 }
 
 func sameRecords(a []collection.Record, b []collection.Record) bool {
@@ -361,21 +321,6 @@ func sameYear(a *int, b *int) bool {
 		return a == b
 	}
 	return *a == *b
-}
-
-func sameFloat(a *float64, b *float64) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	return *a == *b
-}
-
-func median(values []float64) float64 {
-	middle := len(values) / 2
-	if len(values)%2 == 1 {
-		return values[middle]
-	}
-	return (values[middle-1] + values[middle]) / 2
 }
 
 func posterFilename(info basicInformation, contentType string, imageURL string) string {

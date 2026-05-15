@@ -11,15 +11,12 @@ import (
 )
 
 type Record struct {
-	DiscogsID   int      `json:"discogs id"`
-	Artist      string   `json:"artist"`
-	Album       string   `json:"album"`
-	Year        *int     `json:"year"`
-	Link        string   `json:"discogs link"`
-	Poster      string   `json:"poster"`
-	HighPrice   *float64 `json:"high price"`
-	MediumPrice *float64 `json:"medium price"`
-	LowPrice    *float64 `json:"low price"`
+	DiscogsID int    `json:"discogs id"`
+	Artist    string `json:"artist"`
+	Album     string `json:"album"`
+	Year      *int   `json:"year"`
+	Link      string `json:"discogs link"`
+	Poster    string `json:"poster"`
 }
 
 func Load(path string) ([]Record, error) {
