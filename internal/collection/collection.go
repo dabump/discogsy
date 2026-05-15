@@ -11,11 +11,15 @@ import (
 )
 
 type Record struct {
-	Artist string `json:"artist"`
-	Album  string `json:"album"`
-	Year   *int   `json:"year"`
-	Link   string `json:"discogs link"`
-	Poster string `json:"poster"`
+	DiscogsID   int      `json:"discogs id"`
+	Artist      string   `json:"artist"`
+	Album       string   `json:"album"`
+	Year        *int     `json:"year"`
+	Link        string   `json:"discogs link"`
+	Poster      string   `json:"poster"`
+	HighPrice   *float64 `json:"high price"`
+	MediumPrice *float64 `json:"medium price"`
+	LowPrice    *float64 `json:"low price"`
 }
 
 func Load(path string) ([]Record, error) {
@@ -53,6 +57,16 @@ func Save(path string, records []Record) error {
 
 func Sort(records []Record) {
 	sort.Slice(records, func(i, j int) bool {
-		return strings.ToLower(records[i].Artist) < strings.ToLower(records[j].Artist)
+		artistI := strings.ToLower(records[i].Artist)
+		artistJ := strings.ToLower(records[j].Artist)
+		if artistI != artistJ {
+			return artistI < artistJ
+		}
+		albumI := strings.ToLower(records[i].Album)
+		albumJ := strings.ToLower(records[j].Album)
+		if albumI != albumJ {
+			return albumI < albumJ
+		}
+		return records[i].DiscogsID < records[j].DiscogsID
 	})
 }

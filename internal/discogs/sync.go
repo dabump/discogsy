@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -43,6 +44,8 @@ type collectionResponse struct {
 }
 
 type collectionRelease struct {
+	ID               int              `json:"id"`
+	InstanceID       int              `json:"instance_id"`
 	BasicInformation basicInformation `json:"basic_information"`
 }
 
@@ -57,6 +60,10 @@ type basicInformation struct {
 
 type artist struct {
 	Name string `json:"name"`
+}
+
+type priceSuggestion struct {
+	Value float64 `json:"value"`
 }
 
 func ConfigFromEnv() (Config, error) {
@@ -97,14 +104,20 @@ func NewClient(config Config) *Client {
 }
 
 func (c *Client) Sync(collectionPath string, posterDir string) ([]collection.Record, bool, error) {
-	records, err := collection.Load(collectionPath)
+	previousRecords, err := collection.Load(collectionPath)
 	if err != nil {
 		return nil, false, err
 	}
 
-	known := make(map[string]int, len(records))
-	for index, record := range records {
-		known[record.Link] = index
+	previousByID := make(map[int]collection.Record, len(previousRecords))
+	previousByLink := make(map[string]collection.Record, len(previousRecords))
+	for _, record := range previousRecords {
+		if record.DiscogsID != 0 {
+			previousByID[record.DiscogsID] = record
+		}
+		if record.Link != "" {
+			previousByLink[record.Link] = record
+		}
 	}
 
 	releases, err := c.collectionReleases()
@@ -112,7 +125,7 @@ func (c *Client) Sync(collectionPath string, posterDir string) ([]collection.Rec
 		return nil, false, err
 	}
 
-	changed := false
+	records := make([]collection.Record, 0, len(releases))
 	for _, release := range releases {
 		info := release.BasicInformation
 		if info.ID == 0 {
@@ -120,44 +133,47 @@ func (c *Client) Sync(collectionPath string, posterDir string) ([]collection.Rec
 		}
 
 		link := fmt.Sprintf("https://www.discogs.com/release/%d", info.ID)
-		if index, ok := known[link]; ok {
-			updated := collection.Record{
-				Artist: artistNames(info.Artists),
-				Album:  info.Title,
-				Year:   yearPtr(info.Year),
-				Link:   link,
-				Poster: records[index].Poster,
-			}
-			if updated.Poster == "" {
-				poster, err := c.downloadPoster(info, posterDir)
-				if err != nil {
-					return nil, false, fmt.Errorf("download poster for release %d: %w", info.ID, err)
-				}
-				updated.Poster = poster
-			}
-			if !sameRecord(records[index], updated) {
-				records[index] = updated
-				changed = true
-			}
-			continue
+		discogsID := release.InstanceID
+		if discogsID == 0 {
+			discogsID = release.ID
+		}
+		if discogsID == 0 {
+			discogsID = info.ID
 		}
 
-		poster, err := c.downloadPoster(info, posterDir)
+		previous := previousByID[discogsID]
+		if previous.Poster == "" {
+			previous = previousByLink[link]
+		}
+
+		poster := previous.Poster
+		if poster == "" {
+			var err error
+			poster, err = c.downloadPoster(info, posterDir)
+			if err != nil {
+				return nil, false, fmt.Errorf("download poster for release %d: %w", info.ID, err)
+			}
+		}
+
+		highPrice, mediumPrice, lowPrice, err := c.priceRange(info.ID)
 		if err != nil {
-			return nil, false, fmt.Errorf("download poster for release %d: %w", info.ID, err)
+			return nil, false, fmt.Errorf("get price suggestions for release %d: %w", info.ID, err)
 		}
 
 		records = append(records, collection.Record{
-			Artist: artistNames(info.Artists),
-			Album:  info.Title,
-			Year:   yearPtr(info.Year),
-			Link:   link,
-			Poster: poster,
+			DiscogsID:   discogsID,
+			Artist:      artistNames(info.Artists),
+			Album:       info.Title,
+			Year:        yearPtr(info.Year),
+			Link:        link,
+			Poster:      poster,
+			HighPrice:   highPrice,
+			MediumPrice: mediumPrice,
+			LowPrice:    lowPrice,
 		})
-		known[link] = len(records) - 1
-		changed = true
 	}
 
+	changed := !sameRecords(previousRecords, records)
 	if !changed {
 		return records, false, nil
 	}
@@ -165,6 +181,30 @@ func (c *Client) Sync(collectionPath string, posterDir string) ([]collection.Rec
 		return nil, false, err
 	}
 	return records, true, nil
+}
+
+func (c *Client) priceRange(releaseID int) (*float64, *float64, *float64, error) {
+	endpoint := fmt.Sprintf("%s/marketplace/price_suggestions/%d", apiBaseURL, releaseID)
+	suggestions := map[string]priceSuggestion{}
+	if err := c.getJSON(endpoint, &suggestions); err != nil {
+		return nil, nil, nil, err
+	}
+
+	values := make([]float64, 0, len(suggestions))
+	for _, suggestion := range suggestions {
+		if suggestion.Value > 0 {
+			values = append(values, suggestion.Value)
+		}
+	}
+	if len(values) == 0 {
+		return nil, nil, nil, nil
+	}
+
+	sort.Float64s(values)
+	low := values[0]
+	high := values[len(values)-1]
+	medium := median(values)
+	return &high, &medium, &low, nil
 }
 
 func (c *Client) collectionReleases() ([]collectionRelease, error) {
@@ -288,11 +328,32 @@ func yearPtr(year int) *int {
 }
 
 func sameRecord(a collection.Record, b collection.Record) bool {
-	return a.Artist == b.Artist &&
+	return a.DiscogsID == b.DiscogsID &&
+		a.Artist == b.Artist &&
 		a.Album == b.Album &&
 		sameYear(a.Year, b.Year) &&
 		a.Link == b.Link &&
-		a.Poster == b.Poster
+		a.Poster == b.Poster &&
+		sameFloat(a.HighPrice, b.HighPrice) &&
+		sameFloat(a.MediumPrice, b.MediumPrice) &&
+		sameFloat(a.LowPrice, b.LowPrice)
+}
+
+func sameRecords(a []collection.Record, b []collection.Record) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	a = append([]collection.Record(nil), a...)
+	b = append([]collection.Record(nil), b...)
+	collection.Sort(a)
+	collection.Sort(b)
+	for i := range a {
+		if !sameRecord(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func sameYear(a *int, b *int) bool {
@@ -300,6 +361,21 @@ func sameYear(a *int, b *int) bool {
 		return a == b
 	}
 	return *a == *b
+}
+
+func sameFloat(a *float64, b *float64) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func median(values []float64) float64 {
+	middle := len(values) / 2
+	if len(values)%2 == 1 {
+		return values[middle]
+	}
+	return (values[middle-1] + values[middle]) / 2
 }
 
 func posterFilename(info basicInformation, contentType string, imageURL string) string {
