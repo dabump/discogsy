@@ -1,0 +1,13 @@
+services:
+  discogsy:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "${PORT:-8082}:${PORT:-8082}"
+    volumes:
+      - discogsy-data:/data
+    restart: unless-stopped
+
+volumes:
+  discogsy-data:

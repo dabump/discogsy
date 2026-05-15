@@ -1,3 +1,5 @@
-discogs_collection.json
-posters*
+.git
 .env
+discogs_collection.json
+posters
+posters*

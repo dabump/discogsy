@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	collectionPath = "discogs_collection.json"
-	posterDir      = "posters"
+	defaultCollectionPath = "discogs_collection.json"
+	defaultPosterDir      = "posters"
 )
 
 func main() {
@@ -29,6 +29,9 @@ func main() {
 		log.Fatal(err)
 	}
 
+	collectionPath := envWithDefault("COLLECTION_PATH", defaultCollectionPath)
+	posterDir := envWithDefault("POSTER_DIR", defaultPosterDir)
+
 	records, err := collection.Load(collectionPath)
 	if err != nil {
 		log.Fatalf("load collection: %v", err)
@@ -37,10 +40,7 @@ func main() {
 	client := discogs.NewClient(config)
 	go discogs.RunEvery(12*time.Hour, client, collectionPath, posterDir, store)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8082"
-	}
+	port := envWithDefault("PORT", "8082")
 
 	log.Printf("Discogsy listening on http://localhost:%s", port)
 	if err := http.ListenAndServe(":"+port, web.NewHandler(store, []string{posterDir}, "internal/web/index.html", collectionName)); err != nil {
@@ -54,4 +54,12 @@ func requiredEnv(name string) (string, error) {
 		return "", fmt.Errorf("missing required environment variable: %s", name)
 	}
 	return value, nil
+}
+
+func envWithDefault(name string, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback
+	}
+	return value
 }
