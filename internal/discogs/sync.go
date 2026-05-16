@@ -264,7 +264,7 @@ func RunEvery(interval time.Duration, client *Client, collectionPath string, pos
 			store.SetRecords(records)
 			log.Printf("discogs sync added new records")
 		}
-		fmt.Println("Sync completed")
+		fmt.Printf("Sync completed - Interval: %v\n", interval)
 		time.Sleep(interval)
 	}
 }

@@ -67,14 +67,14 @@ Discogsy is a small self-hosted Go web app for browsing a Discogs vinyl collecti
 
 Discogsy reads configuration from environment variables. Docker Compose loads these from `.env`.
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `DISCOGS_USERNAME` | Yes | None | Discogs username whose collection should be synced. |
-| `DISCOGS_TOKEN` | Yes | None | Discogs personal access token used for API and image requests. |
-| `VINYL_COLLECTION_NAME` | Yes | None | Display name used in the page hero heading. |
-| `PORT` | No | `8082` | HTTP port used by the server and exposed by Docker Compose. |
-| `COLLECTION_PATH` | No | `discogs_collection.json` | Path to the local JSON collection cache. The Docker image defaults to `/data/discogs_collection.json`. |
-| `POSTER_DIR` | No | `posters` | Directory where downloaded release artwork is stored. The Docker image defaults to `/data/posters`. |
+| Variable                | Required | Default                   | Description                                                                                            |
+| ----------------------- | -------- | ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `DISCOGS_USERNAME`      | Yes      | None                      | Discogs username whose collection should be synced.                                                    |
+| `DISCOGS_TOKEN`         | Yes      | None                      | Discogs personal access token used for API and image requests.                                         |
+| `VINYL_COLLECTION_NAME` | Yes      | None                      | Display name used in the page hero heading.                                                            |
+| `PORT`                  | No       | `8082`                    | HTTP port used by the server and exposed by Docker Compose.                                            |
+| `COLLECTION_PATH`       | No       | `discogs_collection.json` | Path to the local JSON collection cache. The Docker image defaults to `/data/discogs_collection.json`. |
+| `POSTER_DIR`            | No       | `posters`                 | Directory where downloaded release artwork is stored. The Docker image defaults to `/data/posters`.    |
 
 The app also accepts the legacy variable names `USERNAME` and `TOKEN` as fallbacks for `DISCOGS_USERNAME` and `DISCOGS_TOKEN`.
 
@@ -114,15 +114,15 @@ go build -o discogsy .
 
 ## HTTP Endpoints
 
-| Endpoint | Description |
-| --- | --- |
-| `/` | Renders the collection browser. |
-| `/api/records` | Returns the current collection records as JSON. |
-| `/posters/{filename}` | Serves downloaded release artwork. |
+| Endpoint              | Description                                     |
+| --------------------- | ----------------------------------------------- |
+| `/`                   | Renders the collection browser.                 |
+| `/api/records`        | Returns the current collection records as JSON. |
+| `/posters/{filename}` | Serves downloaded release artwork.              |
 
 ## How Sync Works
 
-On startup, Discogsy loads the local collection cache and serves it immediately. A background sync then runs every 12 hours. During sync, the app fetches all releases from the Discogs collection folder `0`, adds or updates local records, downloads missing artwork, saves the sorted JSON cache, and updates the in-memory web store.
+On startup, Discogsy loads the local collection cache and serves it immediately. A background sync then runs every 1 hour. During sync, the app fetches all releases from the Discogs collection folder `0`, adds or updates local records, downloads missing artwork, saves the sorted JSON cache, and updates the in-memory web store.
 
 ## Troubleshooting
 
