@@ -17,6 +17,7 @@ type Record struct {
 	Year      *int   `json:"year"`
 	Link      string `json:"discogs link"`
 	Poster    string `json:"poster"`
+	DateAdded string `json:"date added"`
 }
 
 func Load(path string) ([]Record, error) {

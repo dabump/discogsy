@@ -219,7 +219,7 @@
     </div>
     <div class="hero-content">
       <h1>{{.CollectionName}} vinyl collection</h1>
-      <p class="subtitle">Browse the shelves by artist, search as you type, and flip the sort direction without leaving the groove.</p>
+      <p class="subtitle">Browse the shelves by date added, artist, or year without leaving the groove.</p>
     </div>
   </section>
 
@@ -227,6 +227,8 @@
     <section class="toolbar" aria-label="Collection controls">
       <input id="filter" type="search" placeholder="Filter by artist, album, or year" autocomplete="off" autofocus>
       <select id="sort" aria-label="Sort direction">
+        <option value="dateAdded-desc">Date Added Newest First</option>
+        <option value="dateAdded-asc">Date Added Oldest First</option>
         <option value="artist-asc">Artist A to Z</option>
         <option value="artist-desc">Artist Z to A</option>
         <option value="year-asc">Year Oldest First</option>
@@ -262,13 +264,26 @@
       return (a.year - b.year) * direction || compareArtist(a, b);
     }
 
+    function compareDateAdded(a, b, direction) {
+      const dateA = Date.parse(a['date added']);
+      const dateB = Date.parse(b['date added']);
+      if (Number.isNaN(dateA) && Number.isNaN(dateB)) return compareArtist(a, b);
+      if (Number.isNaN(dateA)) return 1;
+      if (Number.isNaN(dateB)) return -1;
+      return (dateA - dateB) * direction || compareArtist(a, b);
+    }
+
     function render() {
       const term = filter.value.trim().toLowerCase();
       const [field, order] = sort.value.split('-');
       const direction = order === 'desc' ? -1 : 1;
       const visible = records
         .filter((record) => recordText(record).includes(term))
-        .sort((a, b) => field === 'year' ? compareYear(a, b, direction) : compareArtist(a, b) * direction);
+        .sort((a, b) => {
+          if (field === 'dateAdded') return compareDateAdded(a, b, direction);
+          if (field === 'year') return compareYear(a, b, direction);
+          return compareArtist(a, b) * direction;
+        });
 
       collection.replaceChildren(...visible.map((record) => {
         const card = document.createElement(record['discogs link'] ? 'a' : 'article');

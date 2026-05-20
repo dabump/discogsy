@@ -45,6 +45,7 @@ type collectionResponse struct {
 type collectionRelease struct {
 	ID               int              `json:"id"`
 	InstanceID       int              `json:"instance_id"`
+	DateAdded        string           `json:"date_added"`
 	BasicInformation basicInformation `json:"basic_information"`
 }
 
@@ -157,6 +158,7 @@ func (c *Client) Sync(collectionPath string, posterDir string) ([]collection.Rec
 			Year:      yearPtr(info.Year),
 			Link:      link,
 			Poster:    poster,
+			DateAdded: release.DateAdded,
 		})
 	}
 
@@ -296,7 +298,8 @@ func sameRecord(a collection.Record, b collection.Record) bool {
 		a.Album == b.Album &&
 		sameYear(a.Year, b.Year) &&
 		a.Link == b.Link &&
-		a.Poster == b.Poster
+		a.Poster == b.Poster &&
+		a.DateAdded == b.DateAdded
 }
 
 func sameRecords(a []collection.Record, b []collection.Record) bool {
